@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from chat_volc.models.models import User
-from chat_volc.models.schemas import PrivateChat
 from chat_volc.settings import get_db
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -31,13 +30,11 @@ async def create_user(
 
 
 @router.get("/{user_id}")
-async def get_chat(request: Request, user_id: str, db: Session = Depends(get_db)):
-    if request.method == "GET":
-        user = db.query(PrivateChat).filter(User.id == user_id).first()
-        if user:
-            return user
-        else:
-            raise HTTPException(status_code=404, detail="private_chat not found")
+async def get_user(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 @router.delete("/{user_id}")

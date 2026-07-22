@@ -25,6 +25,12 @@ class User(Base):
         return f"<User(uid='{self.uid}', username='{self.username}')>"
 
 
+class ChatAlreadyExistsError(Exception):
+    def __init__(self, chat):
+        self.chat = chat
+        super().__init__("Chat already exists between these two users.")
+
+
 class PrivateChat(Base):
     __tablename__ = "private_chats"
 
@@ -50,7 +56,7 @@ class PrivateChat(Base):
         )
 
         if existing_chat:
-            raise Exception("Chat already exists between these two users.")
+            raise ChatAlreadyExistsError(existing_chat)
 
         new_chat = PrivateChat(user_one_id=user_one_id, user_two_id=user_two_id)
         db.add(new_chat)
@@ -80,20 +86,26 @@ class Message(Base):
 
     @staticmethod
     def create_message(db, private_chat_id, data):
-        user_id, text =  data.user_id, data.text
-        current_chat =  db.query(PrivateChat).filter(PrivateChat.id == private_chat_id)
-        current_user = db.query(User).filter(User.id == user_id)
+        text = data.text
+        user = db.query(User).filter(User.uid == data.user_id).first()
+        current_chat = db.query(PrivateChat).filter(PrivateChat.id == private_chat_id)
         chat_exists = db.query(current_chat.exists()).scalar()
-        user_exists = db.query(
-            current_user.exists()
-        ).scalar()
-        if not chat_exists or not user_exists:
+
+        if not chat_exists or not user:
             raise Exception("chat or user id not exists")
+
+        user_id = user.id
         private_chat = current_chat.first()
         chat_users = [private_chat.user_one_id, private_chat.user_two_id]
         if user_id not in chat_users:
             raise Exception("chat or user id not exists")
-        new_message = Message(chat_id=private_chat_id, user_id=user_id, text=text, created_at=datetime.now())
+
+        new_message = Message(
+            chat_id=private_chat_id,
+            user_id=user_id,
+            text=text,
+            created_at=datetime.now(),
+        )
         db.add(new_message)
         db.commit()
         return new_message

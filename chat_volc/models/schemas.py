@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 
@@ -8,30 +8,32 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     username: str
-    # email: str
-
-    class Config:
-        from_attributes = True
-        # orm_mode = True
 
 
 class PrivateChatBase(BaseModel):
-    user_one_id: int
-    user_two_id: int
+    user_one_uid: str
+    user_two_uid: str
 
 
-class PrivateChatCreate(PrivateChatBase):
-    pass
+class PrivateChatCreate(BaseModel):
+    user_one_uid: str
+    user_two_uid: str
 
 
 class PrivateChat(PrivateChatBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     messages: List[int]  # Список идентификаторов сообщений, связанных с чатом
 
-    class Config:
-        from_attributes = True
+
+class MessageCreate(BaseModel):
+    user_id: str
+    text: str
 
 
 class MessageBase(BaseModel):
@@ -39,13 +41,7 @@ class MessageBase(BaseModel):
     text: str
 
 
-class MessageCreate(MessageBase):
-    user_id: int
-    text: str
-
-
 class Message(MessageBase):
-    id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: int
