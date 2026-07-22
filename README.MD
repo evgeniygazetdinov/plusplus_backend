@@ -1,18 +1,5 @@
 # Chat Application
 
-## Overview
-
-This is a chat application built with FastAPI and SQLAlchemy. The application supports both private and public chats, allowing users to communicate in real-time.
-
-## Features
-
-- **User Management**: Create and manage users.
-- **Private Chats**: Users can have private chats with each other.
-- **Public Chats**: Users can participate in public chats based on topics.
-- **Message Management**: Send, receive, and manage messages within chats.
-- **Emotional Context**: Messages can include emotional context.
-
-## Technologies Used
 
 - **FastAPI**: A modern web framework for building APIs with Python.
 - **SQLAlchemy**: A SQL toolkit and Object-Relational Mapping (ORM) system for Python.
