@@ -22,7 +22,7 @@ async def create_message(
 
     return {
         "status": "Message created",
-        "new_message": {"id": new_message.id, "text": new_message.text},
+        "new_message": new_message.to_dict(),
     }
 
 

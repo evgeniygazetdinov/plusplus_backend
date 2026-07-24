@@ -41,8 +41,18 @@ def client(db_session):
 
 @pytest.fixture
 def make_user(db_session):
-    def _make_user(username: str = "test_user") -> User:
-        user = User(uid=str(uuid.uuid4()), username=username)
+    def _make_user(
+        username: str = "test_user",
+        email: str | None = None,
+        provider: str = "local",
+    ) -> User:
+        user = User(
+            uid=str(uuid.uuid4()),
+            username=username,
+            email=email or f"{username}@example.com",
+            provider=provider,
+            provider_id=str(uuid.uuid4()),
+        )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
