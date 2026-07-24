@@ -4,10 +4,10 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     DateTime,
-    Boolean,
-    UniqueConstraint, func,
+    UniqueConstraint,
+    func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from datetime import datetime
 
 import uuid
@@ -16,13 +16,31 @@ from chat_volc.settings import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_id", name="uix_provider_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    uid = Column(String, unique=True, default=str(uuid.uuid4()))
+    uid = Column(String, unique=True, default=lambda: str(uuid.uuid4()))
     username = Column(String, index=True)
+    email = Column(String, index=True, nullable=True)
+    password_hash = Column(String, nullable=True)
+    provider = Column(String, nullable=True, index=True)  # yandex | vk | google | local
+    provider_id = Column(String, nullable=True, index=True)
+    avatar_url = Column(String, nullable=True)
 
     def __repr__(self):
-        return f"<User(uid='{self.uid}', username='{self.username}')>"
+        return f"<User(uid='{self.uid}', username='{self.username}', email='{self.email}')>"
+
+    def to_public_dict(self):
+        return {
+            "id": self.id,
+            "uid": self.uid,
+            "username": self.username,
+            "email": self.email,
+            "provider": self.provider,
+            "avatar_url": self.avatar_url,
+        }
 
 
 class ChatAlreadyExistsError(Exception):
@@ -66,13 +84,6 @@ class PrivateChat(Base):
 
 class Message(Base):
     __tablename__ = "messages"
-    """
-    id: Уникальный идентификатор сообщения.
-    chat_id: Внешний ключ, указывающий на чат, к которому относится сообщение.
-    user_id: Внешний ключ, указывающий на пользователя, который отправил сообщение.
-    text: Текст сообщения.
-
-    """
 
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(Integer, ForeignKey("private_chats.id"), nullable=False)
@@ -83,6 +94,19 @@ class Message(Base):
     emotion = Column(String, nullable=True)
     chat = relationship("PrivateChat", back_populates="messages")
     user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "chat_id": self.chat_id,
+            "user_id": self.user_id,
+            "user_uid": self.user.uid if self.user else None,
+            "username": self.user.username if self.user else None,
+            "text": self.text,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "emotion": self.emotion,
+        }
 
     @staticmethod
     def create_message(db, private_chat_id, data):
@@ -108,5 +132,11 @@ class Message(Base):
         )
         db.add(new_message)
         db.commit()
+        db.refresh(new_message)
+        new_message = (
+            db.query(Message)
+            .options(joinedload(Message.user))
+            .filter(Message.id == new_message.id)
+            .first()
+        )
         return new_message
-
