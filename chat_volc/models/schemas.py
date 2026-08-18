@@ -67,7 +67,6 @@ class PrivateChat(PrivateChatBase):
 
 
 class MessageCreate(BaseModel):
-    user_id: str
     text: str
 
 
