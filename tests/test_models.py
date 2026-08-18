@@ -3,13 +3,13 @@ import uuid
 import pytest
 
 from chat_volc.models.models import ChatAlreadyExistsError, Message, PrivateChat, User
-from chat_volc.models.schemas import MessageCreate, PrivateChatCreate
+from chat_volc.models.schemas import PrivateChatCreate
 
 
 def test_user_repr():
     user = User(uid="test-uid", username="alice")
 
-    assert repr(user) == "<User(uid='test-uid', username='alice')>"
+    assert repr(user) == "<User(uid='test-uid', username='alice', email='None')>"
 
 
 def test_private_chat_create_chat(db_session, two_users):
@@ -35,7 +35,7 @@ def test_private_chat_create_chat_reverse_order_conflict(db_session, two_users):
 
 def test_message_create_message(db_session, chat):
     private_chat, user_one, _ = chat
-    data = MessageCreate(user_id=user_one.uid, text="hello")
+    data = type("Data", (), {"user_id": user_one.uid, "text": "hello"})()
 
     message = Message.create_message(db_session, private_chat.id, data)
 
@@ -48,7 +48,7 @@ def test_message_create_message(db_session, chat):
 def test_message_create_message_user_not_in_chat(db_session, chat, make_user):
     private_chat, _, _ = chat
     outsider = make_user("outsider")
-    data = MessageCreate(user_id=outsider.uid, text="hello")
+    data = type("Data", (), {"user_id": outsider.uid, "text": "hello"})()
 
     with pytest.raises(Exception, match="chat or user id not exists"):
         Message.create_message(db_session, private_chat.id, data)
@@ -56,7 +56,7 @@ def test_message_create_message_user_not_in_chat(db_session, chat, make_user):
 
 def test_message_create_message_chat_not_found(db_session, make_user):
     user = make_user("solo")
-    data = MessageCreate(user_id=user.uid, text="hello")
+    data = type("Data", (), {"user_id": user.uid, "text": "hello"})()
 
     with pytest.raises(Exception, match="chat or user id not exists"):
         Message.create_message(db_session, 9999, data)

@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from chat_volc.auth import get_current_user
 from chat_volc.models.models import Message, PrivateChat, User
 from chat_volc.settings import get_db
 
@@ -20,8 +21,10 @@ async def search_users(
     exclude_uid: str | None = None,
     limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Поиск пользователей по имени или email."""
+    del current_user
     term = q.strip()
     if not term:
         return {"status": "ok", "users": []}
@@ -37,12 +40,16 @@ async def search_users(
 
 
 @router.get("/{user_uid}/chats")
-async def list_user_chats(user_uid: str, db: Session = Depends(get_db)):
+async def list_user_chats(
+    user_uid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Список приватных чатов пользователя с собеседником и последним сообщением."""
-    user = db.query(User).filter(User.uid == user_uid).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if user_uid != current_user.uid:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
+    user = current_user
     chats = (
         db.query(PrivateChat)
         .filter(
@@ -85,50 +92,60 @@ async def list_user_chats(user_uid: str, db: Session = Depends(get_db)):
 
 
 @router.get("/last_five_users")
-async def last_five_users(db: Session = Depends(get_db), username: str = None):
+async def last_five_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    del current_user
     users = db.query(User).all()[-5:]
     return {"status": "ok", "users": [_serialize_user(u) for u in users]}
 
 
 @router.post("/")
 async def create_user(
-    request: Request,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     username: str = None,
     email: str | None = None,
 ):
-    if request.method == "POST":
-        new_user = User(
-            uid=str(uuid.uuid4()),
-            username=username or "user",
-            email=email,
-            provider="local",
-            provider_id=str(uuid.uuid4()),
-        )
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        return {"status": "User created", "user": _serialize_user(new_user)}
-
-    raise HTTPException(status_code=405, detail="Method not allowed")
+    del current_user
+    new_user = User(
+        uid=str(uuid.uuid4()),
+        username=username or "user",
+        email=email,
+        provider="local",
+        provider_id=str(uuid.uuid4()),
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"status": "User created", "user": _serialize_user(new_user)}
 
 
-@router.get("/{user_id}")
-async def get_user(user_id: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
+@router.get("/{user_uid}")
+async def get_user(
+    user_uid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    del current_user
+    user = db.query(User).filter(User.uid == user_uid).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return _serialize_user(user)
 
 
-@router.delete("/{user_id}")
-async def delete_user(request: Request, user_id: str, db: Session = Depends(get_db)):
-    if request.method == "DELETE":
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        db.delete(user)
-        db.commit()
-        return {"status": "User deleted"}
-
-    raise HTTPException(status_code=405, detail="Method not allowed")
+@router.delete("/{user_uid}")
+async def delete_user(
+    user_uid: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if user_uid != current_user.uid:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = db.query(User).filter(User.uid == user_uid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"status": "User deleted"}

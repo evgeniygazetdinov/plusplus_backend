@@ -7,9 +7,20 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from chat_volc.models.models import User
 from chat_volc.settings import get_db
+
+
+def hash_password(password: str) -> str:
+    return generate_password_hash(password)
+
+
+def verify_password(password: str, password_hash: str | None) -> bool:
+    if not password_hash:
+        return False
+    return check_password_hash(password_hash, password)
 
 JWT_SECRET = os.getenv("JWT_SECRET", "chat-volc-dev-secret-change-me")
 JWT_ALGORITHM = "HS256"

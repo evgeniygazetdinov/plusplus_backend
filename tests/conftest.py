@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from chat_volc.auth import create_access_token
 from chat_volc.models.models import Message, PrivateChat, User  # noqa: F401
 from chat_volc.settings import Base, get_db
 from main import app
@@ -64,6 +65,15 @@ def make_user(db_session):
 @pytest.fixture
 def two_users(make_user):
     return make_user("alice"), make_user("bob")
+
+
+@pytest.fixture
+def auth_headers():
+    def _auth_headers(user: User) -> dict[str, str]:
+        token = create_access_token(user)
+        return {"Authorization": f"Bearer {token}"}
+
+    return _auth_headers
 
 
 @pytest.fixture
